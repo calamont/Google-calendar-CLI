@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 from random import choice
 from shutil import copyfile
+from textwrap import dedent
 from collections import OrderedDict
 
 import httplib2
@@ -56,27 +57,30 @@ class Calendar:
         self.initialise_schedule()
 
     def initialise_schedule(self):
-        # Load existing calendar file with previous test dates
-        try:
+        """Load existing calendar file with previous test dates"""
+        if os.path.exists('data.json'):
             with open('data.json', 'r') as file:
-                data = json.load(file, object_pairs_hook=OrderedDict)  # Use OrderedDict to keep the priority of the experiments added.
+                # Use OrderedDict to keep the priority of the experiments added.
+                data = json.load(file, object_pairs_hook=OrderedDict)
                 self.calendar = pd.DataFrame.from_dict(data)
                 # Get int type of index - which are imported as strings and unordered
                 new_index = [int(x) for x in self.calendar.index]
-                self.calendar.set_index(keys=[new_index], inplace=True).sort_index(inplace=True)
-                # self.calendar.sort_index(inplace=True)
+                self.calendar.set_index(keys=[new_index], inplace=True)
+                self.calendar.sort_index(inplace=True)
         # If calendar does not exist, create it
-        except FileNotFoundError:
+        else:
             self.calendar = pd.DataFrame(index=range(365))
 
         self.experiment_labels = self.calendar.columns
 
     def add(self, experiment):
+        """Insert new dates into calendar attribute"""
         self.new_experiment = experiment
 
         # Insert new experiment in the first column of dataframe to give it highest priority
         try:
-            self.calendar.insert(loc=0, column=self.new_experiment.label, value=self.new_experiment.measurement_days)
+            self.calendar.insert(loc=0, column=self.new_experiment.label,
+                                 value=self.new_experiment.measurement_days)
         except ValueError as e:
             # shouldn't need this exception as the name is already checked at an earlier stage..
             print('\nAn experiment with that name already exists. Please try recreating an experiment with a different name.')
@@ -90,42 +94,48 @@ class Calendar:
     def save_dataframe(self):
         # write new schedule to file, which allows schedule to be amended in the future
         with open('data.json', 'w') as file:
-
-            json_file = json.loads(self.calendar.to_json(), object_pairs_hook=OrderedDict)  # converting json string to file type
+            # converting json string to file type
+            json_file = json.loads(self.calendar.to_json(),
+                                   object_pairs_hook=OrderedDict)
             json.dump(json_file, file, indent=2)
 
     def correct_collisions(self):
         # convert dataframe to array
         self.create_array()
 
-        # truncate calendar to only include dates from the beginning of the experiment being added
+        # truncate calendar to only include dates from the beginning
+        # of the experiment being added
         present_calendar = self.calendar_array[self.new_experiment.time_elapsed:, :]
 
         # update calendar instance with updated test schedule
-        self.calendar_array[self.new_experiment.time_elapsed:, :] = self.update_test_dates(present_calendar)
+        self.calendar_array[self.new_experiment.time_elapsed:, :] =\
+            self.update_test_dates(present_calendar)
         self.calendar.iloc[:, :] = self.calendar_array[:, 1:]
 
     def create_array(self):
-        # create weekends to prevent collision correction placing an "experiment" on sat/sundays
+        # create weekends to prevent collision correction placing an "experiment"
+        # on sat/sundays
         saturdays = np.arange(5, 365, 7)
         sundays = saturdays + 1
-        weekends = np.concatenate((saturdays, sundays))  # lists the day values which are weekends
+        # lists the day values which are weekends
+        weekends = np.concatenate((saturdays, sundays))
 
         self.calendar_array = np.zeros((365, 1))
         self.calendar_array[weekends, :] = 1
 
-        # concacentate weekend array and experiment array together, giving weekends highest priority so new experiments won't get placed on these days
-        self.calendar_array = np.concatenate((self.calendar_array, self.calendar.values), axis=1)
+        # concacentate weekend array and experiment array together, giving weekends
+        # highest priority so new experiments won't get placed on these days
+        self.calendar_array = np.concatenate(
+            (self.calendar_array, self.calendar.values), axis=1)
 
     def update_test_dates(self, present_calendar):
         test_count, collisions, free_days = self.analyse_calendar(present_calendar)
-        self.collisions = True if len(collisions) > 0 else False  # remember to clear previous Google calendar events
-
+        # remember to clear previous Google calendar events
+        self.collisions = True if len(collisions) > 0 else False
         count = 0
-
-        # recalculate and move test schedules while there are days with collisions in the test calendar
+        # recalculate and move test schedules while there are days with collisions
+        # in the test calendar
         while len(collisions) > 0:
-
             # break out of program if caught in endless loop / taking too long
             count += 1
             if count > 1000000000:
@@ -146,11 +156,11 @@ class Calendar:
 
                 except ValueError:
                     print('There are no free days left in the existing timeframe :(\nPlease delete or downsample the frequency of lower priority experiments.')
-                    # *** will need to provide an option to delete older tests or to down-sample their frequency
                     sys.exit()
 
                 day_delta = day_differences[min_date]  # number of days from collision date
-                direction = np.sign(day_delta)  # determines which direction the nearest free day is (past or future)
+                # determine which direction the nearest free day is (past or future)
+                direction = np.sign(day_delta)
 
                 new_date = day + direction
 
@@ -170,7 +180,11 @@ class Calendar:
 
     def Google_update(self):
         '''
-        Function updates the saved experiment dates. It first creates text files which lists all the dates which have been designated for the experiments, which is then used to update the google calendar. Text files are created to serve as an offline reference, and in case of any errors which occur after this.
+        Function updates the saved experiment dates. It first creates text
+        files which lists all the dates which have been designated for the
+        experiments, which is then used to update the google calendar.
+        Text files are created to serve as an offline reference, and in case
+        of any errors which occur after this.
         '''
 
         # clear all previously set calendar events if there are event collisions
@@ -179,7 +193,8 @@ class Calendar:
 
         # create new dataframe to save data to a txt file from
         txt_calendar = self.calendar.copy()
-        date_index = pd.DatetimeIndex(start=datetime.date(2018, 1, 1), periods=365, freq='D')
+        date_index = pd.DatetimeIndex(start=datetime.date(2018, 1, 1),
+                                      periods=365, freq='D')
         txt_calendar.set_index(date_index, inplace=True)  # convert integers in index to dates
 
         print('\nUploading updated test schedule to the Solartron Google calendar...')
@@ -187,27 +202,27 @@ class Calendar:
         # initialising progressbar to show progress of event creation
         self.num_of_experiments = txt_calendar.sum(axis=0).sum(axis=0)
         self.bar = progressbar.ProgressBar(maxval=self.num_of_experiments,
-                                           widgets=[progressbar.Bar('◼', '', '', '◻'), progressbar.Percentage()])
+                                           widgets=[
+                                               progressbar.Bar('◼', '', '', '◻'),
+                                               progressbar.Percentage()])
         self.upload_count = 0
         self.bar.start()
         for column in txt_calendar.columns:
-            # get array of dates from indices where experiments are listed (i.e. 1 instead of 0 in calendar array)
-            experiment_dates = txt_calendar[txt_calendar[column] == 1].loc[:, column].index.date
+            # get array of dates from indices where experiments are
+            # listed (i.e. 1 instead of 0 in calendar array)
+            experiment_dates = txt_calendar[txt_calendar[column] == 1].\
+                loc[:, column].index.date
             # convert array of datetime objects to a list of strings
-            experiment_dates = [datetime.datetime.strftime(date, '%d/%m/%y') for date in experiment_dates]
+            experiment_dates = [datetime.datetime.strftime(date, '%d/%m/%y')
+                                for date in experiment_dates]
             # create random unique identifiers for the calendar eventIDs
-            experiment_IDs = [''.join(choice('abcdefghijklmnopqrstuv0123456789') for i in range(10)) for j in experiment_dates]
+            experiment_IDs = [''.join(choice('abcdefghijklmnopqrstuv0123456789')
+                                      for i in range(10)) for j in experiment_dates]
             event_information = list(zip(experiment_dates, experiment_IDs))
 
             # save previous version of experiment schedule
             if os.path.exists(f'experiment_dates/{column}'):
                 copyfile(f'experiment_dates/{column}', f'experiment_dates/archive/{column}')
-            # try:
-            #     copyfile(f'experiment_dates/{column}', f'experiment_dates/archive/{column}')
-
-            # except FileNotFoundError:
-            #     # if writing the experiment for the first time then there will be no file to move to archive
-            #     pass
 
             # write new experiment file with list of dates generated for the experiment
             with open(f'experiment_dates/{column}', 'w') as file:
@@ -246,7 +261,9 @@ class Calendar:
                 },
             }
 
-            self.service.events().insert(calendarId='nllc88qbvtkks5a7jquivl9ibc@group.calendar.google.com', body=test_event).execute()
+            self.service.events().insert(
+                calendarId='nllc88qbvtkks5a7jquivl9ibc@group.calendar.google.com',
+                body=test_event).execute()
 
     def clear_calendar(self, exp_name='all', cli=True):
         print('\nClearing old schedule from the Solartron Google calendar...')
@@ -260,7 +277,8 @@ class Calendar:
             with open(f'experiment_dates/{experiment}', 'r') as file:
                 event_info = ast.literal_eval(file.read())  # read in exp file as list
                 for date, eventID in event_info:
-                    self.service.events().delete(calendarId='nllc88qbvtkks5a7jquivl9ibc@group.calendar.google.com', eventId=eventID).execute()
+                    self.service.events().delete(
+                        calendarId='nllc88qbvtkks5a7jquivl9ibc@group.calendar.google.com', eventId=eventID).execute()
             if cli:
                 # If requested from the command line interface delete ALL traces of the experiment
                 os.remove(f'experiment_dates/{experiment}')

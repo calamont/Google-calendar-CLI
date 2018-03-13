@@ -2,7 +2,8 @@ import os
 import time
 import click
 import datetime
-from experiment import Experiment_test
+from textwrap import dedent
+from experiment import Experiment
 from schedule import Calendar
 
 
@@ -34,21 +35,25 @@ def main():
 
 def program_selection():
     '''
-    Prompts user to select how they would like to update the Solartron google calendar.
+    Prompts user to select how they would like to update the Solartron
+    google calendar.
 
     Inputs can only be 1 or 2.
 
     '''
-    return click.prompt('The options for updating the Solartron Google calendar are.. \n(1) Add experiment\n(2) Delete experiment\n\nSelect what option you would like to perform', type=click.Choice(['1', '2']))
+    return click.prompt('The options for updating the Solartron Google calendar are.. \n(1) Add experiment \n(2) Delete experiment\n\nSelect what option you would like to perform', type=click.Choice(['1', '2']))
 
 
 def create_experiment():
     '''
-    Prompts user for information regarding experiment they would like to create.
+    Prompts user for information regarding experiment they would like
+    to create.
 
     • label = name of experiment
-    • schedule = the frequency of measurements (i.e. daily/monthly) and total duration of experiment
-    • start_date = the date from which to begin the experiment. Defaults to the current date
+    • schedule = the frequency of measurements (i.e. daily/monthly)
+      and total duration of experiment
+    • start_date = the date from which to begin the experiment.
+      Defaults to the current date
 
     '''
     exp = Experiment_test()
@@ -58,7 +63,9 @@ def create_experiment():
         try:
             exp.label = request_name()
         except ValueError as e:
-            click.echo(e)  # Will raise a ValueError if the name requested already exists for another experiment
+            # Will raise a ValueError if the name requested already exists for
+            # another experiment
+            click.echo(e)
             time.sleep(2)
         else:
             break
@@ -66,7 +73,8 @@ def create_experiment():
     # Request timeline/schedule for the experiment
     single_test = click.confirm('\nIs this a one off experiment? (i.e. only using the Solartron for a single day)')
     if single_test:
-        exp.days, exp.weeks, exp.months = request_schedule(single_test)  # Create single test for the date requested
+        # Create single test for the date requested
+        exp.days, exp.weeks, exp.months = request_schedule(single_test)
     else:
         clear_screen()
         # Request more information about the schedule of the experiment
@@ -76,7 +84,8 @@ def create_experiment():
             try:
                 exp.days, exp.weeks, exp.months = request_schedule(single_test)
             except ValueError as e:
-                click.echo(e)  # Will raise ValueError if integers or 'end' not provided
+                # Will raise ValueError if integers or 'end' not provided
+                click.echo(e)
                 time.sleep(2)
             else:
                 break
@@ -86,7 +95,8 @@ def create_experiment():
         try:
             exp.start_date = request_start()
         except ValueError as e:
-            click.echo(e)  # Will raise ValueError if the date provided is in the wrong format.
+            # Will raise ValueError if the date provided is in the wrong format.
+            click.echo(e)
             time.sleep(2)
         else:
             confirm_date = click.confirm(f'\nYou entered {exp.start_date.date()}. Is this correct?')
@@ -99,12 +109,14 @@ def delete_experiment():
     '''Prompts user for the name of the experiment they would like to delete.'''
 
     # Get experiment file names which can be deleted
-    experiment_files = [f for f in os.listdir('experiment_dates') if (os.path.isfile(os.path.join('experiment_dates', f)) and not f.startswith('.'))]  # remove hidden files and 'archive' folder
+    experiment_files = [f for f in os.listdir('experiment_dates') if
+                        (os.path.isfile(os.path.join('experiment_dates', f)) and not f.startswith('.'))]
 
     experiment_string = ['• ' + name + '\n' for name in experiment_files]
     experiment_string = ''.join(experiment_string)
     # Prompt use to delete a file from this list
-    return click.prompt('Which experiment would you like to delete? \n' + experiment_string + '\n', type=click.Choice(experiment_files))
+    return click.prompt('Which experiment would you like to delete? \n' +
+                        experiment_string + '\n', type=click.Choice(experiment_files))
 
 
 def request_name():
