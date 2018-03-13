@@ -7,7 +7,6 @@ import numpy as np
 import pandas as pd
 from random import choice
 from shutil import copyfile
-from textwrap import dedent
 from collections import OrderedDict
 
 import httplib2

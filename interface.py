@@ -2,7 +2,6 @@ import os
 import time
 import click
 import datetime
-from textwrap import dedent
 from experiment import Experiment
 from schedule import Calendar
 
